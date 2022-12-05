@@ -3,16 +3,17 @@ package BankerManagerSimulation
 // установить модификаторы доступа
 class Player(name:String) {
     val name=name
+
     var factory=2
     var autofactory=0
-    var stock=4
+    var material=4
     var product=2
     var cash=10000
     var fixedCosts=0
     var totalCapital=0
 
     //Константы
-    //Расходы и объем на производстве
+    //Переменные расходы
     val factoryPower=1
     val factoryCosts=2000
     val autofactoryPower=2
@@ -36,12 +37,30 @@ class Player(name:String) {
     val factoryLoan=5000
     val autofactoryLoan=10000
 
-
-
-
+    fun RequestsMaterials():Tender {
+        print("Введите количество закупа материалов: ")
+        var quantity= readLine()?.toInt() ?:0
+        print("Введите цену закупа материалов: " )
+        var price= readLine()?.toInt() ?:0
+        return Tender(this.name, quantity, price)
+    }
+    fun RequestsManufacture() {
+        print("Введите количество продукции на производство на обычных фабриках: ")
+        var quantityF= readLine()?.toInt() ?:0
+        print("Введите количество продукции на производство на автоматизированых фабриках: " )
+        var quantityAF= readLine()?.toInt() ?:0
+        //Рассчитать переменные расходы
+    }
+    fun RequestsProdukts():Tender {
+        print("Введите количество продукции на продажу: ")
+        var quantity= readLine()?.toInt() ?:0
+        print("Введите цену продажи продукции: " )
+        var price= readLine()?.toInt() ?:0
+        return Tender(this.name, quantity, price)
+    }
 
     fun CalcFixedCosts():Int{
-        return factory*buildingFactory + autofactory*buildingAutofactory
+        return factory*factoryFee + autofactory*autofactoryFee + material*materialFee + product*productFee
     }
 
     fun CalcCach(){

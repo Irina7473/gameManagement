@@ -1,6 +1,6 @@
 package BankerManagerSimulation
 
-class Level (quantityM:Double, priceM:Int, quantityFP:Double, priceFP:Int){
+class MarketLevel (quantityM:Double, priceM:Int, quantityFP:Double, priceFP:Int){
     val quantityM=quantityM
     val priceM=priceM
     val quantityFP=quantityFP

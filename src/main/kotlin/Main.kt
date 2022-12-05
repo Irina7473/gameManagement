@@ -1,6 +1,4 @@
 import BankerManagerSimulation.Game
-import BankerManagerSimulation.Level
-import BankerManagerSimulation.Player
 
 fun main() {
     println("Деловая игра Менеджмент")
