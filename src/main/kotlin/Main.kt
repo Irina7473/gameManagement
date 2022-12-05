@@ -1,16 +1,16 @@
 import BankerManagerSimulation.Game
+import BankerManagerSimulation.Level
+import BankerManagerSimulation.Player
 
 fun main() {
-    println("Hello World!")
+    println("Деловая игра Менеджмент")
+    //Начало игры. Заявки игроков, подключение, определение количества игроков
+    print("Введите количество игроков: ")
+    val num= readLine()!!.toInt()
+    print("Введите количество раундов: ")
+    val round= readLine()!!.toInt()
+    var game=Game(num,round)
+    game.StartGame()  //запуск игры
 
-    var game=Game()
-    var order=3
-    for(n in 1..10) {
-        order = game.TransitionPriceLevel(order)
-        println(order)
-        var level = game.levels.get(order)
-        if (level != null) {
-            println(level.LevelToString())
-        }
-    }
+
 }
