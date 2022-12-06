@@ -1,7 +1,6 @@
 package BankerManagerSimulation
-
-
-// установить модификаторы доступа
+//ИГРА
+// установить модификаторы доступа dtplt
 
 class Game(number:Int, round:Int) {
     val round=round
@@ -9,7 +8,8 @@ class Game(number:Int, round:Int) {
     var activePlayers=numberPlayers  //кол-во игроков минус банкроты
     val players= arrayListOf<Player>()   //список игроков
     var seniorPlayer=1  //старший игрок
-    var order=3  //обстановка на рынке
+    var order=3  //уровень коньюнктуры рынка
+    val loanPercent = 0.01  //ссудный процент
 
     val marketLevels= mapOf(
         1 to MarketLevel( Math.floor(1.0*activePlayers),800,Math.floor(3.0*activePlayers),6500),
@@ -27,18 +27,18 @@ class Game(number:Int, round:Int) {
             var name = readLine().toString()
             players.add(Player(name))
         }
-        for (n in 1..round) {
+        for (current in 1..round) {
             CalculationFixedCosts()  //списание постоянных издержек
             TransitionPriceLevel(order)  // определение обстановки на рынке
             println(level?.LevelToString())  //извещение игроков об обстановке на рынке
-            var tenderM=MaterialsTender()//Тендер на сырье и материалы
-                //Произвести расчеты по закупу
+            var tenderM=MaterialsTender()//Тендер на продажу материалов
+                //Произвести расчеты по закупу материалов
                 //Производство продукции и расчеты
-            var tenderP=ProductsTender()//Продажа продукции
-                //Произвести расчеты по продажам
-                //Выплата ссудного %
-                //Погашение ссуд
-                //Получение ссуд
+            var tenderP=ProductsTender()//Тендер на закуп продукции
+                //Произвести расчеты по продажам продукции
+            InterestPayment()    //Выплата ссудного %
+            LoanRepayment(current)    //Погашение ссуд
+            GettingLoans(current)    //Получение ссуд
                 //Завки на строительство
 
 
@@ -77,7 +77,6 @@ class Game(number:Int, round:Int) {
         //Добавить сюда приоритет старшего игрока
         return level?.let { Purchase(tender, it.quantityM) }
     }
-
     fun ProductsTender(): ArrayList<Tender>? {
         var tender= arrayListOf<Tender>()
         for (player in players) {
@@ -88,6 +87,7 @@ class Game(number:Int, round:Int) {
         //Добавить сюда приоритет старшего игрока
         return level?.let { Purchase(tender, it.quantityFP) }
     }
+    //Размещение закупки у игроков
     fun Purchase(tender:ArrayList<Tender>, quantity:Double): ArrayList<Tender> {
         var quantity=quantity.toInt()
         for (requests in tender) {
@@ -95,6 +95,36 @@ class Game(number:Int, round:Int) {
             else quantity -= requests.quantity
         }
         return tender
+    }
+
+    //Выплата ссудного %
+    fun InterestPayment(){
+        for (player in players) {
+            if (player.totalLoans > 0) {
+                player.cash -= (player.totalLoans * loanPercent).toInt()
+                // Проверка на банкротство
+            }
+        }
+    }
+    //Погашение ссуд
+    fun LoanRepayment(current:Int){
+        for (player in players)
+            if (player.totalLoans > 0) {
+                for (loan in player.loans)
+                    if (loan.term == current) {
+                        //проверка на банкротство
+                        player.cash -= loan.amount
+                        player.totalLoans -= loan.amount
+                        loan.factory.pledge = false
+                        player.loans.remove(loan)
+                    }
+            }
+    }
+    //Получение ссуд
+    fun GettingLoans(current:Int){
+        for (player in players) {
+            player.RequestsLoan(current)
+        }
     }
 
     private fun InstallSeniorPlayer():Int{
