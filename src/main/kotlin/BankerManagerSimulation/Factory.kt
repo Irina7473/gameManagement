@@ -1,8 +1,12 @@
 package BankerManagerSimulation
 //ФАБРИКА
 // установить модификаторы доступа
-class Factory (timestart:Int) {
-    var auto = false  //автоматизированная
+class Factory (current:Int=0, auto:Boolean=false) {
+    var auto = auto  //автоматизированная
+    var autoStart = 0   // период старта после реконструкции
+        set(value) {
+            field = value+9
+        }
     var pledge = false   //в залоге под ссуду
     var buildingCost:Int   //стоимость фабрики
     init{
@@ -14,5 +18,12 @@ class Factory (timestart:Int) {
         if (auto) power=2
         else power=1
     }
-    var timestart=timestart  //период начала производства
+    var timeStart:Int =0 //период начала производства
+    init{
+        if(current==0) timeStart=0
+        else if (auto) timeStart=current+7
+        else timeStart=current+5
+    }
+
+    //может все-таки вторичный конструктор вместо блока инициализации - подумать
 }

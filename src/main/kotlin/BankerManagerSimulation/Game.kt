@@ -18,7 +18,7 @@ class Game(number:Int, round:Int) {
         4 to MarketLevel(Math.floor(2.5*activePlayers),400,Math.floor(1.5*activePlayers),5000),
         5 to MarketLevel(Math.floor(3.0*activePlayers),300,Math.floor(1.0*activePlayers),4500)
     )
-    var level=marketLevels[3]  // уровень цен на рынке
+    var level=marketLevels[order]  // уровень цен на рынке
 
     fun StartGame(){
 
@@ -29,7 +29,7 @@ class Game(number:Int, round:Int) {
         }
         for (current in 1..round) {
             CalculationFixedCosts()  //списание постоянных издержек
-            TransitionPriceLevel(order)  // определение обстановки на рынке
+            level = TransitionPriceLevel(order)  //определение обстановки на рынке
             println(level?.LevelToString())  //извещение игроков об обстановке на рынке
             var tenderM=MaterialsTender()//Тендер на продажу материалов
                 //Произвести расчеты по закупу материалов
@@ -39,9 +39,7 @@ class Game(number:Int, round:Int) {
             InterestPayment()    //Выплата ссудного %
             LoanRepayment(current)    //Погашение ссуд
             GettingLoans(current)    //Получение ссуд
-                //Завки на строительство
-
-
+            Investments(current)    //инвестиции в строительство фабрик
                 //убрать банкротов
                 seniorPlayer=InstallSeniorPlayer()
                 //конец игры или переход к следующему раунду
@@ -50,12 +48,15 @@ class Game(number:Int, round:Int) {
         println("Конец игры. Победил игрок $")
     }
 
+    //списание постоянных издержек
     fun CalculationFixedCosts(){
         for (player in players) {
-            player.CalcCach()
+            player.CalcFixedCosts()
         }
+        //учесть банкротство
     }
-    fun TransitionPriceLevel(order:Int){
+    //определение обстановки на рынке
+    fun TransitionPriceLevel(order:Int): MarketLevel? {
         var options: List<Int> = listOf()
         when(order){
             1 -> options = listOf(1,1,1,1,2,2,2,2,3,3,4,5)
@@ -64,9 +65,10 @@ class Game(number:Int, round:Int) {
             4 -> options = listOf(1,2,3,3,3,4,4,4,4,5,5,5)
             5 -> options = listOf(1,2,3,3,4,4,4,4,5,5,5,5)
         }
-        level=marketLevels[options.random()]
+        this.order =options.random()
+        return marketLevels[order]
     }
-
+    //Тендер на продажу материалов
     fun MaterialsTender(): ArrayList<Tender>? {
         var tender= arrayListOf<Tender>()
         for (player in players) {
@@ -124,6 +126,12 @@ class Game(number:Int, round:Int) {
     fun GettingLoans(current:Int){
         for (player in players) {
             player.RequestsLoan(current)
+        }
+    }
+    //инвестиции в строительство фабрик
+    fun Investments(current:Int){
+        for (player in players) {
+            player.RequestsBuilding(current)
         }
     }
 

@@ -1,3 +1,4 @@
+import BankerManagerSimulation.Factory
 import BankerManagerSimulation.Game
 
 fun main() {
@@ -9,6 +10,8 @@ fun main() {
     val round= readLine()!!.toInt()
     var game=Game(num,round)
     game.StartGame()  //запуск игры
+
+
 
 
 }
