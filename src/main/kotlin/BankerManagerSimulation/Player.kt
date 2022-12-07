@@ -4,13 +4,13 @@ package BankerManagerSimulation
 class Player(name:String) {
     val name=name
 
-    var factories = arrayListOf<Factory>(Factory(1), Factory(1))
+    var factories = arrayListOf<Factory>(Factory(), Factory())
     var material=4
     var product=2
     var cash=10000
         set(value) {
             if(value>0) field = value
-            else field = 0  //добавить банкротство
+            else field = 0  //учесть банкротство
         }
     var loans = arrayListOf<Loan>()
     var totalLoans=0
@@ -19,23 +19,25 @@ class Player(name:String) {
     var totalCapital=0
 
     //Константы
-    //Переменные расходы
-    val factoryCosts=2000
-    val autofactoryCosts=3000
     //Постоянные издержки
     val materialFee=300
     val productFee=500
-    val factoryFee=1000
-    val autofactoryFee=1500
     //Капитальные затраты
     val numberFactory=6
     val invest=5000
     val reconstr=7000
 
+    //Подключение к игре
+    fun ConnectionTogameGame(){
+        //СДЕЛАТЬ
+    }
+
     // расчет постоянных затрат
     fun CalcFixedCosts(){
-        material*materialFee + product*productFee
-        //учесть банкротство
+        //СДЕЛАТЬ
+        var sum = material*materialFee + product*productFee
+        for (factory in factories) sum += factory.fee
+        cash -= sum     //учесть банкротство
     }
 
     //заявка на закуп материалов
@@ -47,17 +49,43 @@ class Player(name:String) {
         return Tender(this.name, quantity, price)
     }
     //заявка на производство
-    fun RequestsManufacture() {
-        print("Введите количество продукции на производство на фабриках: ")
-        var quantity= readLine()?.toInt() ?:0
-        //Пройдемся по фабрикам
+    fun RequestsManufacture(current:Int) {
+        print("Введите количество продукции на производство на фабриках, не более $material: ")
+        var input= readLine()?.toInt() ?:0
+        if (input <= 0) return
+        var quantity=material   //max кол-во для производства
+        if (input <=  material) quantity=input
+
+        //Размещение заказа на фабриках
+        for (factory in factories){
+            if (quantity>0) {
+                //этот блок перенести в начало - где расчет постоянных затрат
+                //проверяю время на реконструкцию обычной фабрики
+                if (factory.auto == false && factory.autoStart <= current) factory.ChangeFactoryType()
+                if (factory.timeStart <= current)  //проверяю время на запуск построенной фабрики
+                {
+                    //на этой фабрике можно производить продукцию
+                    var produced = factory.power  //max кол-во для производства на этой фабрике
+                    if (quantity < factory.power) produced=quantity
+                    println("Сколько продукции хотите произвести на фабрике, но не более $produced")
+                    input = readLine()?.toInt()!!
+                    if (input > 0) {  //размещаю производство на фабрике
+                        if (input < produced) produced = input
+
+                        cash -= produced*factory.costs //учесть банкротство
+                        material -= produced
+                        product += produced
+                        quantity -= produced  //уменьшаю кол-во к размещению на производство
+                    }
+                }
+            }
+        }
         //Рассчитать переменные расходы
     }
     //заявка на продажу продукции
     fun RequestsProdukts():Tender {
-        print("Введите количество продукции на продажу: ")
+        print("Введите количество продукции на продажу, не более $product: ")
         var quantity= readLine()?.toInt() ?:0
-        //проверить наличие, не спрашивать совсем-брать из наличия
         print("Введите цену продажи продукции: " )
         var price= readLine()?.toInt() ?:0
         if (quantity<=product) return Tender(this.name, quantity, price)
@@ -94,18 +122,19 @@ class Player(name:String) {
     }
     //инвестиции в строительство фабрик
     fun RequestsBuilding(current:Int){
-    // /*Обычная фабрика стоит 5000 долл. и начинает давать продукцию на 5-й месяц после начала строительства;
-    // /*автоматизированная фабрика стоит 10 000 долл и дает продукцию на 7-й месяц после начала строительства.
-    // Обычную фабрику можно автоматизировать за 7000 долл., реконструкция продолжается 9 месяцев, все это время фабрика может работать как обычная.
-    // /*Половину стоимости фабрики надо платить в начале строительства, вторую половину — за месяц до начала выпуска продукции в этой же фазе цикла.
-    // /*Общее число имеющихся и строящихся фабрик у каждого игрока не должно превышать шести.
-        var freeBuild = numberFactory- factories.size  //доступно для строительства
         var freeCash = cash
-        if (freeBuild > 0 && freeCash >= invest) {
+        if (freeCash < invest){
+            println("Недостаточно средств для строительства и реконструкции фабрик")
+            return
+        }
+        var input =0
+        //Строительство новых фабрик
+        var freeBuild = numberFactory- factories.size  //доступно для строительства
+        if (freeBuild > 0) {
             println("Вы можете построить $freeBuild фабрик на сумму не более $freeCash")
             println("Ведите желаемое количество фабрик для постройки")
-            var input = readLine()?.toInt()!!
-            if (input<=0) return
+            input = readLine()?.toInt()!!
+            if (input <= 0) return
             for (n in 1..freeBuild) {
                 if (freeCash < invest) {
                     println("Недостаточно средств для строительства фабрики")
@@ -116,33 +145,33 @@ class Player(name:String) {
                 var auto = false
                 if (input == 1) auto = true
                 val factory = Factory(current, auto)
-                if (factory.buildingCost /2 <= freeCash) {
-                    freeCash -= factory.buildingCost /2   //не забыть списать 2 часть перед запуском
+                if (factory.buildingCost / 2 <= freeCash) {
+                    freeCash -= factory.buildingCost / 2   //не забыть списать 2 часть перед запуском
                     freeBuild--
                     factories.add(factory)
-                }
-                else println("Недостаточно средств для строительства фабрики")
-            }
-            //Реконструкция фабрик
-            println("Хотите автоматизировать имеющиеся фабрики? Да-1, нет - 0")
-            input = readLine()?.toInt()!!
-            if (input<=0) return
-            for (i in factories.indices) {
-                if (factories[i].auto == false) {
-                    if (freeCash < reconstr) {
-                        println("Недостаточно средств для реконструкции фабрики")
-                        return
-                    }
-                    print("Хотите автоматизировать фабрику номер $i? Да-1, нет - 0")
-                    input = readLine()?.toInt()!!
-                    if (input == 1){
-                        freeCash -= reconstr /2  //не забыть списать 2 часть перед запуском
-                        factories[i].autoStart = current+9
-                    }
-                }
+                } else println("Недостаточно средств для строительства фабрики")
             }
         }
         else println("Вам недоступно строительство фабрик")
+
+        //Реконструкция фабрик
+        println("Хотите автоматизировать имеющиеся фабрики? Да-1, нет - 0")
+        input = readLine()?.toInt()!!
+        if (input <= 0) return
+        for (i in factories.indices) {
+            if (factories[i].auto == false) {
+                if (freeCash < reconstr) {
+                    println("Недостаточно средств для реконструкции фабрики")
+                    return
+                }
+                print("Хотите автоматизировать фабрику номер $i? Да-1, нет - 0")
+                input = readLine()?.toInt()!!
+                if (input == 1) {
+                    freeCash -= reconstr / 2  //не забыть списать 2 часть перед запуском
+                    factories[i].autoStart = current + 9
+                }
+            }
+        }
     }
 
     //определение капитала игрока

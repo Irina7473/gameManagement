@@ -22,7 +22,8 @@ class Game(number:Int, round:Int) {
 
     fun StartGame(){
 
-        for (n in 0..numberPlayers-1) {
+        for (n in 1..numberPlayers-1) {
+            //Подключение нового игрока
             print("Введите имя: ")
             var name = readLine().toString()
             players.add(Player(name))
@@ -32,18 +33,18 @@ class Game(number:Int, round:Int) {
             level = TransitionPriceLevel(order)  //определение обстановки на рынке
             println(level?.LevelToString())  //извещение игроков об обстановке на рынке
             var tenderM=MaterialsTender()//Тендер на продажу материалов
-                //Произвести расчеты по закупу материалов
-                //Производство продукции и расчеты
+                //Произвести расчеты по закупу материалов СДЕЛАТЬ
+            Manufacture(current)    //Производство продукции и расчеты
             var tenderP=ProductsTender()//Тендер на закуп продукции
-                //Произвести расчеты по продажам продукции
+                //Произвести расчеты по продажам продукции СДЕЛАТЬ
             InterestPayment()    //Выплата ссудного %
             LoanRepayment(current)    //Погашение ссуд
             GettingLoans(current)    //Получение ссуд
             Investments(current)    //инвестиции в строительство фабрик
-                //убрать банкротов
-                seniorPlayer=InstallSeniorPlayer()
-                //конец игры или переход к следующему раунду
-                //если конец игры, то определить победителя
+                //убрать банкротов СДЕЛАТЬ
+                seniorPlayer=InstallSeniorPlayer(current)  //ДОДЕЛАТЬ
+                //конец игры или переход к следующему раунду СДЕЛАТЬ
+                //если конец игры, то определить победителя СДЕЛАТЬ
         }
         println("Конец игры. Победил игрок $")
     }
@@ -79,6 +80,7 @@ class Game(number:Int, round:Int) {
         //Добавить сюда приоритет старшего игрока
         return level?.let { Purchase(tender, it.quantityM) }
     }
+    //Тендер на закуп продукции
     fun ProductsTender(): ArrayList<Tender>? {
         var tender= arrayListOf<Tender>()
         for (player in players) {
@@ -97,6 +99,13 @@ class Game(number:Int, round:Int) {
             else quantity -= requests.quantity
         }
         return tender
+    }
+
+    //Производство продукции и расчеты
+    fun Manufacture(current:Int){
+        for (player in players) {
+            player.RequestsManufacture(current)
+        }
     }
 
     //Выплата ссудного %
@@ -135,8 +144,9 @@ class Game(number:Int, round:Int) {
         }
     }
 
-    private fun InstallSeniorPlayer():Int{
-        return round*activePlayers+1
+    //проверить и доработать
+    private fun InstallSeniorPlayer(current:Int):Int{
+        return current*activePlayers+1
     }
 
 }
