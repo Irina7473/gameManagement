@@ -3,19 +3,18 @@ package BankerManagerSimulation
 // установить модификаторы доступа
 class Player(name:String) {
     val name=name
-
+    var bankrupt=false
     var factories = arrayListOf<Factory>(Factory(), Factory())
     var material=4
     var product=2
     var cash=10000
         set(value) {
-            if(value>0) field = value
-            else field = 0  //учесть банкротство
+            if(value>=0) field = value
+            else Bankruptcy()  //учесть банкротство
         }
     var loans = arrayListOf<Loan>()
     var totalLoans=0
     var totalPledge=10000
-    var fixedCosts=0
     var totalCapital=0
 
     //Константы
@@ -32,12 +31,28 @@ class Player(name:String) {
         //СДЕЛАТЬ
     }
 
+    fun Bankruptcy(){
+        bankrupt=true
+        cash=0
+        factories.clear()
+        material=0
+        product=0
+        loans.clear()
+        totalLoans = 0
+        totalPledge=0
+        println("Вы обанкротились")
+    }
+
     // расчет постоянных затрат
-    fun CalcFixedCosts(){
-        //СДЕЛАТЬ
+    fun CalcFixedCosts(current:Int){
         var sum = material*materialFee + product*productFee
-        for (factory in factories) sum += factory.fee
-        cash -= sum     //учесть банкротство
+        for (factory in factories) {
+            //проверяю время на реконструкцию обычной фабрики и меняю ее тип
+            if (factory.auto == false && factory.autoStart == current) factory.ChangeFactoryType()
+            if (factory.timeStart <= current)  // плачу только за действующие фабрики
+            sum += factory.fee
+        }
+        cash -= sum
     }
 
     //заявка на закуп материалов
@@ -59,9 +74,6 @@ class Player(name:String) {
         //Размещение заказа на фабриках
         for (factory in factories){
             if (quantity>0) {
-                //этот блок перенести в начало - где расчет постоянных затрат
-                //проверяю время на реконструкцию обычной фабрики
-                if (factory.auto == false && factory.autoStart <= current) factory.ChangeFactoryType()
                 if (factory.timeStart <= current)  //проверяю время на запуск построенной фабрики
                 {
                     //на этой фабрике можно производить продукцию
@@ -71,8 +83,10 @@ class Player(name:String) {
                     input = readLine()?.toInt()!!
                     if (input > 0) {  //размещаю производство на фабрике
                         if (input < produced) produced = input
-
-                        cash -= produced*factory.costs //учесть банкротство
+                        var costs = factory.costs
+                        if (factory.auto==true && produced<factory.power) costs= costs/3*2
+                        cash -= produced*costs
+                        if (bankrupt==true) return
                         material -= produced
                         product += produced
                         quantity -= produced  //уменьшаю кол-во к размещению на производство
@@ -122,8 +136,14 @@ class Player(name:String) {
     }
     //инвестиции в строительство фабрик
     fun RequestsBuilding(current:Int){
-        var freeCash = cash
-        if (freeCash < invest){
+        //оплата 2 части перед запуском строящихся и реконструируемых фабрик
+        for (factory in factories){
+            if (factory.timeStart - current == 1) cash -= factory.buildingCost/2
+            if (factory.autoStart - current == 1) cash -= reconstr/2
+        }
+        if (bankrupt==true) return
+
+        if (cash < invest){
             println("Недостаточно средств для строительства и реконструкции фабрик")
             return
         }
@@ -131,12 +151,12 @@ class Player(name:String) {
         //Строительство новых фабрик
         var freeBuild = numberFactory- factories.size  //доступно для строительства
         if (freeBuild > 0) {
-            println("Вы можете построить $freeBuild фабрик на сумму не более $freeCash")
-            println("Ведите желаемое количество фабрик для постройки")
+            println("Вы можете построить $freeBuild фабрик на сумму не более $cash")
+            println("Введите желаемое количество фабрик для постройки")
             input = readLine()?.toInt()!!
             if (input <= 0) return
             for (n in 1..freeBuild) {
-                if (freeCash < invest) {
+                if (cash < invest) {
                     println("Недостаточно средств для строительства фабрики")
                     return
                 }
@@ -145,8 +165,9 @@ class Player(name:String) {
                 var auto = false
                 if (input == 1) auto = true
                 val factory = Factory(current, auto)
-                if (factory.buildingCost / 2 <= freeCash) {
-                    freeCash -= factory.buildingCost / 2   //не забыть списать 2 часть перед запуском
+                if (factory.buildingCost/2 <= cash) {
+                    cash -= factory.buildingCost/2
+                    if (bankrupt==true) return
                     freeBuild--
                     factories.add(factory)
                 } else println("Недостаточно средств для строительства фабрики")
@@ -160,14 +181,15 @@ class Player(name:String) {
         if (input <= 0) return
         for (i in factories.indices) {
             if (factories[i].auto == false) {
-                if (freeCash < reconstr) {
+                if (cash < reconstr/2) {
                     println("Недостаточно средств для реконструкции фабрики")
                     return
                 }
                 print("Хотите автоматизировать фабрику номер $i? Да-1, нет - 0")
                 input = readLine()?.toInt()!!
                 if (input == 1) {
-                    freeCash -= reconstr / 2  //не забыть списать 2 часть перед запуском
+                    cash -= reconstr/2
+                    if (bankrupt==true) return
                     factories[i].autoStart = current + 9
                 }
             }
@@ -175,9 +197,16 @@ class Player(name:String) {
     }
 
     //определение капитала игрока
-    fun CalcTotalCapital():Int{
-        //Сумма стоимости всех фабрик (по цене строительства), стоимости сырья (по мин текущей цене), стоимости ГП (по макс текущей цене) и наличных.
-        // Минус сумма ссуд и предстоящих расходов начатому строительству
-        return  cash
+    fun CalcTotalCapital(current:Int, priceM:Int, priceFP:Int){
+        totalCapital += cash        //сумма наличных
+        totalCapital += material*priceM  // стоимости сырья (по мин текущей цене)
+        totalCapital += product*priceFP  // стоимости ГП (по макс текущей цене)
+        for (factory in factories) {
+            //Сумма стоимости всех фабрик (по цене строительства),
+            totalCapital += factory.buildingCost
+            // Минус сумма предстоящих расходов начатому строительству
+            if (factory.timeStart > current) totalCapital -= factory.buildingCost/2
+        }
+        totalCapital -= totalLoans      // Минус сумма ссуд
     }
 }

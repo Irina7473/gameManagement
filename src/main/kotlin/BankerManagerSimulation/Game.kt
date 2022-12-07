@@ -6,7 +6,7 @@ class Game(number:Int, round:Int) {
     val round=round
     val numberPlayers=number   //всего игроков
     var activePlayers=numberPlayers  //кол-во игроков минус банкроты
-    val players= arrayListOf<Player>()   //список игроков
+    var players= arrayListOf<Player>()   //список игроков
     var seniorPlayer=1  //старший игрок
     var order=3  //уровень коньюнктуры рынка
     val loanPercent = 0.01  //ссудный процент
@@ -20,41 +20,41 @@ class Game(number:Int, round:Int) {
     )
     var level=marketLevels[order]  // уровень цен на рынке
 
-    fun StartGame(){
-
-        for (n in 1..numberPlayers-1) {
+    fun ConnectingPlayers (){
+        for (n in 1..numberPlayers) {
             //Подключение нового игрока
             print("Введите имя: ")
             var name = readLine().toString()
             players.add(Player(name))
         }
+    }
+    fun StartGame(){
         for (current in 1..round) {
-            CalculationFixedCosts()  //списание постоянных издержек
+            CalculationFixedCosts(current)  //списание постоянных издержек
             level = TransitionPriceLevel(order)  //определение обстановки на рынке
             println(level?.LevelToString())  //извещение игроков об обстановке на рынке
-            var tenderM=MaterialsTender()//Тендер на продажу материалов
-                //Произвести расчеты по закупу материалов СДЕЛАТЬ
+            MaterialsTender(current)//Тендер на продажу материалов
             Manufacture(current)    //Производство продукции и расчеты
-            var tenderP=ProductsTender()//Тендер на закуп продукции
-                //Произвести расчеты по продажам продукции СДЕЛАТЬ
-            InterestPayment()    //Выплата ссудного %
+            ProductsTender()//Тендер на закуп продукции
+            InterestPayment(current)    //Выплата ссудного %
             LoanRepayment(current)    //Погашение ссуд
             GettingLoans(current)    //Получение ссуд
             Investments(current)    //инвестиции в строительство фабрик
-                //убрать банкротов СДЕЛАТЬ
-                seniorPlayer=InstallSeniorPlayer(current)  //ДОДЕЛАТЬ
-                //конец игры или переход к следующему раунду СДЕЛАТЬ
-                //если конец игры, то определить победителя СДЕЛАТЬ
+                            //ОТЧЕТ за раунд
+            activePlayers = players.size
+            if (activePlayers<=1) GameOver(current)    //если конец игры, то определить победителя СДЕЛАТЬ
+            seniorPlayer=InstallSeniorPlayer(current)  //определение старшего игрока на следующий круг ДОДЕЛАТЬ
         }
-        println("Конец игры. Победил игрок $")
+        GameOver(round) //СДЕЛАТЬ
     }
 
     //списание постоянных издержек
-    fun CalculationFixedCosts(){
+    fun CalculationFixedCosts(current:Int){
         for (player in players) {
-            player.CalcFixedCosts()
+            player.CalcFixedCosts(current)
+            if (player.bankrupt == true)  players.remove(player) //убираю банкрота
         }
-        //учесть банкротство
+        if (players.isEmpty()) GameOver(current)
     }
     //определение обстановки на рынке
     fun TransitionPriceLevel(order:Int): MarketLevel? {
@@ -70,26 +70,42 @@ class Game(number:Int, round:Int) {
         return marketLevels[order]
     }
     //Тендер на продажу материалов
-    fun MaterialsTender(): ArrayList<Tender>? {
+    fun MaterialsTender(current:Int) {
         var tender= arrayListOf<Tender>()
         for (player in players) {
-            var requests=player.RequestsMaterials()
-            if(requests.quantity!=0 && requests.price > level?.priceM ?: 0) tender.add(requests)
+            var request=player.RequestsMaterials()
+            if(request.quantity!=0 && request.price > level?.priceM ?: 0) tender.add(request)
         }
         tender= tender.sortedByDescending { it.price } as ArrayList<Tender>
         //Добавить сюда приоритет старшего игрока
-        return level?.let { Purchase(tender, it.quantityM) }
+        tender = level?.let { Purchase(tender, it.quantityM) }!!
+        for (request in tender){
+            var player=players.find { it.name == request.name }
+            if (player !=null){
+                player.material += request.quantity
+                player.cash -= request.quantity * request.price
+                if (player.bankrupt == true)  players.remove(player) //убираю банкрота
+            }
+        }
+        if (players.isEmpty()) GameOver(current)
     }
     //Тендер на закуп продукции
-    fun ProductsTender(): ArrayList<Tender>? {
+    fun ProductsTender() {
         var tender= arrayListOf<Tender>()
         for (player in players) {
-            var requests=player.RequestsProdukts()
-            if(requests.quantity!=0 && requests.price < level?.priceFP ?: 0) tender.add(requests)
+            var request=player.RequestsProdukts()
+            if(request.quantity!=0 && request.price < level?.priceFP ?: 0) tender.add(request)
         }
         tender= tender.sortedBy { it.price } as ArrayList<Tender>
         //Добавить сюда приоритет старшего игрока
-        return level?.let { Purchase(tender, it.quantityFP) }
+        tender = level?.let { Purchase(tender, it.quantityFP) }!!
+        for (request in tender){
+            var player=players.find { it.name == request.name }
+            if (player !=null){
+                player.product -= request.quantity
+                player.cash += request.quantity * request.price
+            }
+        }
     }
     //Размещение закупки у игроков
     fun Purchase(tender:ArrayList<Tender>, quantity:Double): ArrayList<Tender> {
@@ -105,17 +121,20 @@ class Game(number:Int, round:Int) {
     fun Manufacture(current:Int){
         for (player in players) {
             player.RequestsManufacture(current)
+            if (player.bankrupt == true)  players.remove(player) //убираю банкрота
         }
+        if (players.isEmpty()) GameOver(current)
     }
 
     //Выплата ссудного %
-    fun InterestPayment(){
+    fun InterestPayment(current:Int){
         for (player in players) {
             if (player.totalLoans > 0) {
                 player.cash -= (player.totalLoans * loanPercent).toInt()
-                // Проверка на банкротство
+                if (player.bankrupt == true)  players.remove(player) //убираю банкрота
             }
         }
+        if (players.isEmpty()) GameOver(current)
     }
     //Погашение ссуд
     fun LoanRepayment(current:Int){
@@ -124,12 +143,15 @@ class Game(number:Int, round:Int) {
                 for (loan in player.loans)
                     if (loan.term == current) {
                         //проверка на банкротство
-                        player.cash -= loan.amount
+                        if (player.bankrupt == true) break
                         player.totalLoans -= loan.amount
                         loan.factory.pledge = false
                         player.loans.remove(loan)
+                        player.cash -= loan.amount
                     }
+                if (player.bankrupt == true)  players.remove(player) //убираю банкрота
             }
+        if (players.isEmpty()) GameOver(current)
     }
     //Получение ссуд
     fun GettingLoans(current:Int){
@@ -141,12 +163,30 @@ class Game(number:Int, round:Int) {
     fun Investments(current:Int){
         for (player in players) {
             player.RequestsBuilding(current)
+            if (player.bankrupt == true)  players.remove(player) //убираю банкрота
         }
+        if (players.isEmpty()) GameOver(current)
     }
 
     //проверить и доработать
     private fun InstallSeniorPlayer(current:Int):Int{
         return current*activePlayers+1
+    }
+
+    //Отчет СДЕЛАТЬ
+    fun Report(){
+
+    }
+
+    fun GameOver(current:Int){
+        //Подсчет капиталов оставшихся игроков
+        for (player in players) player.CalcTotalCapital(current, level!!.priceM, level!!.priceFP)
+        //Определение победителя
+        players= players.sortedByDescending { it.totalCapital } as ArrayList<Player>
+        //отчет за игру  СДЕЛАТЬ
+
+        val first = players.first().name
+        println("Игра закончена. Победил игрок $first")
     }
 
 }
