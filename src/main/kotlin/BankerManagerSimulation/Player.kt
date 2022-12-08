@@ -1,7 +1,8 @@
 package BankerManagerSimulation
 //ИГРОК
 // установить модификаторы доступа
-class Player(name:String) {
+class Player(id:Int, name:String = "неизвестно") {
+    val id=id
     val name=name
     var bankrupt=false
     var factories = arrayListOf<Factory>(Factory(), Factory())
@@ -28,7 +29,7 @@ class Player(name:String) {
 
     //Подключение к игре
     fun ConnectionTogameGame(){
-        //СДЕЛАТЬ
+        //СДЕЛАТЬ запрос на подключение
     }
 
     fun Bankruptcy(){
@@ -61,7 +62,7 @@ class Player(name:String) {
         var quantity= readLine()?.toInt() ?:0
         print("Введите цену закупа материалов: " )
         var price= readLine()?.toInt() ?:0
-        return Tender(this.name, quantity, price)
+        return Tender(this.id, quantity, price)
     }
     //заявка на производство
     fun RequestsManufacture(current:Int) {
@@ -102,8 +103,8 @@ class Player(name:String) {
         var quantity= readLine()?.toInt() ?:0
         print("Введите цену продажи продукции: " )
         var price= readLine()?.toInt() ?:0
-        if (quantity<=product) return Tender(this.name, quantity, price)
-        else return Tender(this.name, product, price)
+        if (quantity<=product) return Tender(this.id, quantity, price)
+        else return Tender(this.id, product, price)
     }
     //заявка на выдачу ссуды
     fun RequestsLoan(current:Int) {

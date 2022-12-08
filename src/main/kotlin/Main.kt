@@ -12,12 +12,30 @@ fun main() {
     game.ConnectingPlayers()
     game.StartGame()  //запуск игры
 
+
+
+
+    /*fun Show(arr:ArrayList<Int>){
+        for (n in arr) print(n)
+        println("")
+    }
+    var priority= arrayListOf<Int>(1,2,3,4,5,6,7,8,9)
+    Show(priority)
+    for(n in 0..10) {
+        var seniorPlayer = n % 5 + 1
+        var temp = priority[0]
+        for (i in 0..priority.size-2) priority[i]=priority[i+1]
+        priority[priority.size-1]=temp
+        //for (i in 0..priority.size - 1) priority[i] = seniorPlayer + i
+        Show(priority)
+        if(n%3==0) priority.remove(n)
+    }*/
+
+
 }
 
 // ДОДЕЛАТЬ
 /*
-* переход роли старшего игрока
-* реализовать преференции старшего игрока при закупе материалов и продаже продукции
 * ОТЧЕТЫ
 * взаимодействие игроков и банкира
 

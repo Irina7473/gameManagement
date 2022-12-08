@@ -8,6 +8,7 @@ class Game(number:Int, round:Int) {
     var activePlayers=numberPlayers  //кол-во игроков минус банкроты
     var players= arrayListOf<Player>()   //список игроков
     var seniorPlayer=1  //старший игрок
+    //var priority= arrayOf<Int>()
     var order=3  //уровень коньюнктуры рынка
     val loanPercent = 0.01  //ссудный процент
 
@@ -21,11 +22,14 @@ class Game(number:Int, round:Int) {
     var level=marketLevels[order]  // уровень цен на рынке
 
     fun ConnectingPlayers (){
+        //ждем игроков и подключаем их - СДЕЛАТЬ
         for (n in 1..numberPlayers) {
             //Подключение нового игрока
             print("Введите имя: ")
             var name = readLine().toString()
-            players.add(Player(name))
+            if (name==null) players.add(Player(n))
+            else players.add(Player(n, name))
+            //priority[n-1]=n
         }
     }
     fun StartGame(){
@@ -43,7 +47,7 @@ class Game(number:Int, round:Int) {
                             //ОТЧЕТ за раунд
             activePlayers = players.size
             if (activePlayers<=1) GameOver(current)    //если конец игры, то определить победителя СДЕЛАТЬ
-            seniorPlayer=InstallSeniorPlayer(current)  //определение старшего игрока на следующий круг ДОДЕЛАТЬ
+            InstallSeniorPlayer(current)  //определение старшего игрока на следующий круг ДОДЕЛАТЬ
         }
         GameOver(round) //СДЕЛАТЬ
     }
@@ -71,16 +75,21 @@ class Game(number:Int, round:Int) {
     }
     //Тендер на продажу материалов
     fun MaterialsTender(current:Int) {
+        //сбор заявок на тендер
         var tender= arrayListOf<Tender>()
         for (player in players) {
             var request=player.RequestsMaterials()
             if(request.quantity!=0 && request.price > level?.priceM ?: 0) tender.add(request)
         }
+        //сортировка заявок по убыванию цены
         tender= tender.sortedByDescending { it.price } as ArrayList<Tender>
-        //Добавить сюда приоритет старшего игрока
+        //приоритет старшего игрока при равной цене
+        tender= PreferenceSeniorPlayer(tender)
+        //Размещение закупки у игроков
         tender = level?.let { Purchase(tender, it.quantityM) }!!
+        //продажа материалов по результатам тендера
         for (request in tender){
-            var player=players.find { it.name == request.name }
+            var player=players.find { it.id == request.id }
             if (player !=null){
                 player.material += request.quantity
                 player.cash -= request.quantity * request.price
@@ -89,23 +98,43 @@ class Game(number:Int, round:Int) {
         }
         if (players.isEmpty()) GameOver(current)
     }
+
     //Тендер на закуп продукции
     fun ProductsTender() {
+        //сбор заявок на тендер
         var tender= arrayListOf<Tender>()
         for (player in players) {
             var request=player.RequestsProdukts()
             if(request.quantity!=0 && request.price < level?.priceFP ?: 0) tender.add(request)
         }
+        //сортировка заявок по возрастанию цены
         tender= tender.sortedBy { it.price } as ArrayList<Tender>
-        //Добавить сюда приоритет старшего игрока
+        //приоритет старшего игрока при равной цене
+        tender= PreferenceSeniorPlayer(tender)
+        //Размещение закупки у игроков
         tender = level?.let { Purchase(tender, it.quantityFP) }!!
+        //покупка продукции по результатам тендера
         for (request in tender){
-            var player=players.find { it.name == request.name }
+            var player=players.find { it.id == request.id }
             if (player !=null){
                 player.product -= request.quantity
                 player.cash += request.quantity * request.price
             }
         }
+    }
+    //приоритет старшего игрока при равной цене
+    private fun PreferenceSeniorPlayer(tender:ArrayList<Tender>):ArrayList<Tender>{
+        for(i in 0..tender.size-2){
+            if(tender[i].price==tender[i+1].price){
+                if(players.indexOfFirst { it.id ==tender[i].id } > players.indexOfFirst { it.id ==tender[i+1].id })
+                {
+                    var temp=tender[i]
+                    tender[i]=tender[i+1]
+                    tender[i+1]=temp
+                }
+            }
+        }
+        return tender
     }
     //Размещение закупки у игроков
     fun Purchase(tender:ArrayList<Tender>, quantity:Double): ArrayList<Tender> {
@@ -168,9 +197,12 @@ class Game(number:Int, round:Int) {
         if (players.isEmpty()) GameOver(current)
     }
 
-    //проверить и доработать
-    private fun InstallSeniorPlayer(current:Int):Int{
-        return current*activePlayers+1
+    //определение старшего игрока на следующий круг ДОДЕЛАТЬ
+    private fun InstallSeniorPlayer(current:Int){
+        var temp = players[0]
+        for (i in 0..players.size-2) players[i]=players[i+1]
+        players[players.size-1]=temp
+        seniorPlayer = current%activePlayers+1
     }
 
     //Отчет СДЕЛАТЬ
@@ -184,9 +216,9 @@ class Game(number:Int, round:Int) {
         //Определение победителя
         players= players.sortedByDescending { it.totalCapital } as ArrayList<Player>
         //отчет за игру  СДЕЛАТЬ
-
-        val first = players.first().name
-        println("Игра закончена. Победил игрок $first")
+        val firstId = players.first().id
+        val firstName = players.first().name
+        println("Игра закончена. Победил игрок номер $firstId - $firstName")
     }
 
 }
