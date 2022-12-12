@@ -1,7 +1,7 @@
 package BankerManagerSimulation
 //ИГРОК
 // установить модификаторы доступа
-class Player(id:Int, name:String = "неизвестно") {
+class Player(id:Int, name:String = "неизвестно"): Comparable<Player> {
     val id=id
     val name=name
     var bankrupt=false
@@ -26,6 +26,11 @@ class Player(id:Int, name:String = "неизвестно") {
     val numberFactory=6
     val invest=5000
     val reconstr=7000
+
+    override fun compareTo(other: Player): Int {
+        return if (this.totalCapital != other.totalCapital) this.totalCapital - other.totalCapital
+        else 0
+    }
 
     //Подключение к игре
     fun ConnectionTogameGame(){
@@ -66,6 +71,7 @@ class Player(id:Int, name:String = "неизвестно") {
     }
     //заявка на производство
     fun RequestsManufacture(current:Int) {
+        //нужна проверка произв.мощностей
         print("Введите количество продукции на производство на фабриках, не более $material: ")
         var input= readLine()?.toInt() ?:0
         if (input <= 0) return
@@ -111,7 +117,7 @@ class Player(id:Int, name:String = "неизвестно") {
         var freeLoan = totalPledge/2 - totalLoans  //доступная ссуда
         if (freeLoan > 0){
             println("Вам доступны ссуды на сумму $freeLoan")
-            println("Ведите общую сумму ссуд")
+            print("Ведите общую сумму ссуд - ")
             var input = readLine()?.toInt()!!
             if (input<=0) return
             println("Ведите сумму ссуды для каждой фабрики")
@@ -120,7 +126,7 @@ class Player(id:Int, name:String = "неизвестно") {
                 {
                     var axe = factories[i].buildingCost  //сумма ссуды для фабрики
                     if (axe >= freeLoan) axe=freeLoan
-                    print("Под фабрику номер $i можно взять ссуду на сумму до $axe")
+                    print("Под фабрику номер $i можно взять ссуду на сумму до $axe - ")
                     input = readLine()?.toInt()!!
                     if (input <=axe && input >0) {
                         loans.add(Loan(factories[i], current))
@@ -153,9 +159,10 @@ class Player(id:Int, name:String = "неизвестно") {
         var freeBuild = numberFactory- factories.size  //доступно для строительства
         if (freeBuild > 0) {
             println("Вы можете построить $freeBuild фабрик на сумму не более $cash")
-            println("Введите желаемое количество фабрик для постройки")
+            print("Введите желаемое количество фабрик для постройки - ")
             input = readLine()?.toInt()!!
             if (input <= 0) return
+            if (input < freeBuild) freeBuild=input
             for (n in 1..freeBuild) {
                 if (cash < invest) {
                     println("Недостаточно средств для строительства фабрики")

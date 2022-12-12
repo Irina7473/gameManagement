@@ -8,7 +8,6 @@ class Game(number:Int, round:Int) {
     var activePlayers=numberPlayers  //кол-во игроков минус банкроты
     var players= arrayListOf<Player>()   //список игроков
     var seniorPlayer=1  //старший игрок
-    //var priority= arrayOf<Int>()
     var order=3  //уровень коньюнктуры рынка
     val loanPercent = 0.01  //ссудный процент
 
@@ -29,17 +28,17 @@ class Game(number:Int, round:Int) {
             var name = readLine().toString()
             if (name==null) players.add(Player(n))
             else players.add(Player(n, name))
-            //priority[n-1]=n
         }
     }
     fun StartGame(){
         for (current in 1..round) {
             CalculationFixedCosts(current)  //списание постоянных издержек
             level = TransitionPriceLevel(order)  //определение обстановки на рынке
+            println("Раунд $current")
             println(level?.LevelToString())  //извещение игроков об обстановке на рынке
             MaterialsTender(current)//Тендер на продажу материалов
             Manufacture(current)    //Производство продукции и расчеты
-            ProductsTender()//Тендер на закуп продукции
+            ProductsTender(current)//Тендер на закуп продукции
             InterestPayment(current)    //Выплата ссудного %
             LoanRepayment(current)    //Погашение ссуд
             GettingLoans(current)    //Получение ссуд
@@ -56,9 +55,14 @@ class Game(number:Int, round:Int) {
     fun CalculationFixedCosts(current:Int){
         for (player in players) {
             player.CalcFixedCosts(current)
-            if (player.bankrupt == true)  players.remove(player) //убираю банкрота
+            if (player.bankrupt == true)  {
+                println("Игрок ${player.name} - банкрот")
+                players.remove(player)  //убираю банкрота
+            }
         }
         if (players.isEmpty()) GameOver(current)
+        println("Списаны постоянные издержки")
+        Report(current)
     }
     //определение обстановки на рынке
     fun TransitionPriceLevel(order:Int): MarketLevel? {
@@ -75,44 +79,88 @@ class Game(number:Int, round:Int) {
     }
     //Тендер на продажу материалов
     fun MaterialsTender(current:Int) {
+        println("Обстановка на рынке ${level?.quantityM} единиц материалов при минимальной цене ${level?.priceM}")
         //сбор заявок на тендер
         var tender= arrayListOf<Tender>()
         for (player in players) {
+            println("Игрок ${player.name}")
             var request=player.RequestsMaterials()
             if(request.quantity!=0 && request.price > level?.priceM ?: 0) tender.add(request)
         }
-        //сортировка заявок по убыванию цены
-        tender= tender.sortedByDescending { it.price } as ArrayList<Tender>
+        println("Заявки игроков на тендере материалов")
+        println("name       quantity        price")
+        for (request in tender){
+             println("Игрок ${players.find{ it.id == request.id }?.name} - ${request.quantity} - ${request.price}")
+        }
+        //сортировка заявок по убыванию цены не получилась через Comparable
+        //tender= tender.sortWith(compareByDescending<Tender>{ it.price }.thenByDescending{ it }) //compareBy<String> { it.length }.thenBy { it }
+        //tender= tender.sortByDescending { it.price }
         //приоритет старшего игрока при равной цене
-        tender= PreferenceSeniorPlayer(tender)
+        //tender= PreferenceSeniorPlayer(tender)
+        for(i in 0..tender.size-2) {
+            if (tender[i].price < tender[i + 1].price ||
+                (tender[i].price == tender[i + 1].price &&
+                        players.indexOfFirst { it.id == tender[i].id } > players.indexOfFirst { it.id == tender[i + 1].id }))
+            {
+                var temp = tender[i]
+                tender[i] = tender[i + 1]
+                tender[i + 1] = temp
+            }
+        }
+
         //Размещение закупки у игроков
         tender = level?.let { Purchase(tender, it.quantityM) }!!
+
         //продажа материалов по результатам тендера
         for (request in tender){
             var player=players.find { it.id == request.id }
             if (player !=null){
                 player.material += request.quantity
                 player.cash -= request.quantity * request.price
-                if (player.bankrupt == true)  players.remove(player) //убираю банкрота
+                if (player.bankrupt == true)  {
+                    println("Игрок ${player.name} - банкрот")
+                    players.remove(player)  //убираю банкрота
+                }
             }
         }
         if (players.isEmpty()) GameOver(current)
+        Report(current)
     }
 
     //Тендер на закуп продукции
-    fun ProductsTender() {
+    fun ProductsTender(current:Int) {
+        println("Обстановка на рынке ${level?.quantityFP} единиц продукции при максимальной цене ${level?.priceFP}")
         //сбор заявок на тендер
         var tender= arrayListOf<Tender>()
         for (player in players) {
+            println("Игрок ${player.name}")
             var request=player.RequestsProdukts()
             if(request.quantity!=0 && request.price < level?.priceFP ?: 0) tender.add(request)
         }
-        //сортировка заявок по возрастанию цены
-        tender= tender.sortedBy { it.price } as ArrayList<Tender>
+        println("Заявки игроков на продажу продукции")
+        println("name       quantity        price")
+        for (request in tender){
+            println("${players.find{ it.id == request.id }?.name} - ${request.quantity} - ${request.price}")
+        }
+        //сортировка заявок по возрастанию цены не получилась через Comparable
+        //tender= tender.sortWith(compareBy<Tender>{ it.price }.thenBy{ it })
+        //tender= tender.sortedBy { it.price } as ArrayList<Tender>
         //приоритет старшего игрока при равной цене
-        tender= PreferenceSeniorPlayer(tender)
+        //tender= PreferenceSeniorPlayer(tender)
+        for(i in 0..tender.size-2) {
+            if (tender[i].price > tender[i + 1].price ||
+                (tender[i].price == tender[i + 1].price &&
+                        players.indexOfFirst { it.id == tender[i].id } > players.indexOfFirst { it.id == tender[i + 1].id }))
+            {
+                var temp = tender[i]
+                tender[i] = tender[i + 1]
+                tender[i + 1] = temp
+            }
+        }
+
         //Размещение закупки у игроков
         tender = level?.let { Purchase(tender, it.quantityFP) }!!
+
         //покупка продукции по результатам тендера
         for (request in tender){
             var player=players.find { it.id == request.id }
@@ -121,8 +169,9 @@ class Game(number:Int, round:Int) {
                 player.cash += request.quantity * request.price
             }
         }
+        Report(current)
     }
-    //приоритет старшего игрока при равной цене
+    //приоритет старшего игрока при равной цене  - не использую без сортировки
     private fun PreferenceSeniorPlayer(tender:ArrayList<Tender>):ArrayList<Tender>{
         for(i in 0..tender.size-2){
             if(tender[i].price==tender[i+1].price){
@@ -133,15 +182,24 @@ class Game(number:Int, round:Int) {
                     tender[i+1]=temp
                 }
             }
-        }
+            /* if(tender[i].price<tender[i+1].price || (tender[i].price==tender[i+1].price && players.indexOfFirst { it.id ==tender[i].id } > players.indexOfFirst { it.id ==tender[i+1].id }))
+                {
+                    var temp=tender[i]
+                    tender[i]=tender[i+1]
+                    tender[i+1]=temp
+                }*/
+            }
         return tender
     }
     //Размещение закупки у игроков
     fun Purchase(tender:ArrayList<Tender>, quantity:Double): ArrayList<Tender> {
         var quantity=quantity.toInt()
-        for (requests in tender) {
-            if(requests.quantity>quantity) requests.quantity= quantity
-            else quantity -= requests.quantity
+        println("Результат тендера")
+        println("name       quantity        price")
+        for (request in tender) {
+            if(request.quantity>quantity) request.quantity= quantity
+            quantity -= request.quantity
+            println("${players.find{ it.id == request.id }?.name} - ${request.quantity} - ${request.price}")
         }
         return tender
     }
@@ -149,10 +207,15 @@ class Game(number:Int, round:Int) {
     //Производство продукции и расчеты
     fun Manufacture(current:Int){
         for (player in players) {
+            println("Игрок ${player.name}")
             player.RequestsManufacture(current)
-            if (player.bankrupt == true)  players.remove(player) //убираю банкрота
+            if (player.bankrupt == true)  {
+                println("Игрок ${player.name} - банкрот")
+                players.remove(player)  //убираю банкрота
+            }
         }
         if (players.isEmpty()) GameOver(current)
+        Report(current)
     }
 
     //Выплата ссудного %
@@ -160,10 +223,15 @@ class Game(number:Int, round:Int) {
         for (player in players) {
             if (player.totalLoans > 0) {
                 player.cash -= (player.totalLoans * loanPercent).toInt()
-                if (player.bankrupt == true)  players.remove(player) //убираю банкрота
+                if (player.bankrupt == true)  {
+                    println("Игрок ${player.name} - банкрот")
+                    players.remove(player)  //убираю банкрота
+                }
             }
         }
         if (players.isEmpty()) GameOver(current)
+        println("Произведена выплата ссудного %")
+        Report(current)
     }
     //Погашение ссуд
     fun LoanRepayment(current:Int){
@@ -178,23 +246,37 @@ class Game(number:Int, round:Int) {
                         player.loans.remove(loan)
                         player.cash -= loan.amount
                     }
-                if (player.bankrupt == true)  players.remove(player) //убираю банкрота
+                if (player.bankrupt == true)  {
+                    println("Игрок ${player.name} - банкрот")
+                    players.remove(player)  //убираю банкрота
+                }
             }
         if (players.isEmpty()) GameOver(current)
+        println("Произведен возврат ссуд")
+        Report(current)
     }
     //Получение ссуд
     fun GettingLoans(current:Int){
         for (player in players) {
+            println("Игрок ${player.name}")
             player.RequestsLoan(current)
         }
+        println("Произведена выдача ссуд")
+        Report(current)
     }
     //инвестиции в строительство фабрик
     fun Investments(current:Int){
         for (player in players) {
+            println("Игрок ${player.name}")
             player.RequestsBuilding(current)
-            if (player.bankrupt == true)  players.remove(player) //убираю банкрота
+            if (player.bankrupt == true)  {
+                println("Игрок ${player.name} - банкрот")
+                players.remove(player)  //убираю банкрота
+            }
         }
         if (players.isEmpty()) GameOver(current)
+        println("Произведены инвестиции")
+        Report(current)
     }
 
     //определение старшего игрока на следующий круг ДОДЕЛАТЬ
@@ -203,22 +285,35 @@ class Game(number:Int, round:Int) {
         for (i in 0..players.size-2) players[i]=players[i+1]
         players[players.size-1]=temp
         seniorPlayer = current%activePlayers+1
+        println("Старший игрок ${players[0].name}")
     }
 
     //Отчет СДЕЛАТЬ
-    fun Report(){
-
+    fun Report(current:Int){
+        println("Отчет по игрокам раунд $current")
+        println("id     name        cash        material        product     totalLoans")
+        for (player in players) println("${player.id} - ${player.name} - ${player.cash} - ${player.material} - ${player.product} - ${player.totalLoans}")
     }
 
     fun GameOver(current:Int){
         //Подсчет капиталов оставшихся игроков
         for (player in players) player.CalcTotalCapital(current, level!!.priceM, level!!.priceFP)
-        //Определение победителя
-        players= players.sortedByDescending { it.totalCapital } as ArrayList<Player>
+        //Определение победителя не получилась через Comparable
+        //val players= players.sortByDescending { it.totalCapital } as ArrayList<Player>
         //отчет за игру  СДЕЛАТЬ
+        for(i in 0..players.size-2) {
+            if (players[i].totalCapital > players[i + 1].totalCapital )
+            {
+                var temp = players[i]
+                players[i] = players[i + 1]
+                players[i + 1] = temp
+            }
+        }
         val firstId = players.first().id
         val firstName = players.first().name
         println("Игра закончена. Победил игрок номер $firstId - $firstName")
+        println("Капиталы игроков")
+        for (player in players) println("${player.id} - ${player.name} - ${player.totalCapital}")
     }
 
 }
