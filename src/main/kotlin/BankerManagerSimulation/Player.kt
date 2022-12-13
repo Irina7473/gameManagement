@@ -1,7 +1,7 @@
 package BankerManagerSimulation
 //ИГРОК
 // установить модификаторы доступа
-class Player(id:Int, name:String = "неизвестно"): Comparable<Player> {
+class Player(id:Int, name:String = "неизвестно") {
     val id=id
     val name=name
     var bankrupt=false
@@ -27,10 +27,6 @@ class Player(id:Int, name:String = "неизвестно"): Comparable<Player> {
     val invest=5000
     val reconstr=7000
 
-    override fun compareTo(other: Player): Int {
-        return if (this.totalCapital != other.totalCapital) this.totalCapital - other.totalCapital
-        else 0
-    }
 
     //Подключение к игре
     fun ConnectionTogameGame(){
@@ -71,7 +67,9 @@ class Player(id:Int, name:String = "неизвестно"): Comparable<Player> {
     }
     //заявка на производство
     fun RequestsManufacture(current:Int) {
-        //нужна проверка произв.мощностей
+
+        //нужна проверка произв.мощностей !!!!
+
         print("Введите количество продукции на производство на фабриках, не более $material: ")
         var input= readLine()?.toInt() ?:0
         if (input <= 0) return
@@ -126,6 +124,7 @@ class Player(id:Int, name:String = "неизвестно"): Comparable<Player> {
                 {
                     var axe = factories[i].buildingCost  //сумма ссуды для фабрики
                     if (axe >= freeLoan) axe=freeLoan
+                    if (axe <= 0 ) return
                     print("Под фабрику номер $i можно взять ссуду на сумму до $axe - ")
                     input = readLine()?.toInt()!!
                     if (input <=axe && input >0) {
@@ -135,7 +134,7 @@ class Player(id:Int, name:String = "неизвестно"): Comparable<Player> {
                         freeLoan -=input
                         cash += input
                     }
-                    else print("Запрошена неверная сумма")
+                    else println("Запрошена неверная сумма")
                 }
             }
         }
@@ -193,7 +192,7 @@ class Player(id:Int, name:String = "неизвестно"): Comparable<Player> {
                     println("Недостаточно средств для реконструкции фабрики")
                     return
                 }
-                print("Хотите автоматизировать фабрику номер $i? Да-1, нет - 0")
+                print("Хотите автоматизировать фабрику номер $i? Да-1, нет - 0  ")
                 input = readLine()?.toInt()!!
                 if (input == 1) {
                     cash -= reconstr/2

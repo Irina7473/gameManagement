@@ -6,9 +6,9 @@ class Game(number:Int, round:Int) {
     val round=round
     val numberPlayers=number   //всего игроков
     var activePlayers=numberPlayers  //кол-во игроков минус банкроты
-    var players= arrayListOf<Player>()   //список игроков
+    var players= mutableListOf<Player>()   //список игроков
     var seniorPlayer=1  //старший игрок
-    var order=3  //уровень коньюнктуры рынка
+    var order=2  //уровень коньюнктуры рынка
     val loanPercent = 0.01  //ссудный процент
 
     val marketLevels= mapOf(
@@ -81,32 +81,23 @@ class Game(number:Int, round:Int) {
     fun MaterialsTender(current:Int) {
         println("Обстановка на рынке ${level?.quantityM} единиц материалов при минимальной цене ${level?.priceM}")
         //сбор заявок на тендер
-        var tender= arrayListOf<Tender>()
+        var tender= mutableListOf<Tender>()
         for (player in players) {
             println("Игрок ${player.name}")
             var request=player.RequestsMaterials()
-            if(request.quantity!=0 && request.price > level?.priceM ?: 0) tender.add(request)
+            if(request.quantity!=0 && request.price >= level?.priceM ?: 0) tender.add(request)
         }
         println("Заявки игроков на тендере материалов")
         println("name       quantity        price")
         for (request in tender){
              println("Игрок ${players.find{ it.id == request.id }?.name} - ${request.quantity} - ${request.price}")
         }
-        //сортировка заявок по убыванию цены не получилась через Comparable
-        //tender= tender.sortWith(compareByDescending<Tender>{ it.price }.thenByDescending{ it }) //compareBy<String> { it.length }.thenBy { it }
-        //tender= tender.sortByDescending { it.price }
+        //сортировка заявок по убыванию цены
+        //tender = tender.sortedWith(compareByDescending{ it.price }) as MutableList<Tender>
+        tender = tender.sortedByDescending { it.price } as MutableList<Tender>
+
         //приоритет старшего игрока при равной цене
-        //tender= PreferenceSeniorPlayer(tender)
-        for(i in 0..tender.size-2) {
-            if (tender[i].price < tender[i + 1].price ||
-                (tender[i].price == tender[i + 1].price &&
-                        players.indexOfFirst { it.id == tender[i].id } > players.indexOfFirst { it.id == tender[i + 1].id }))
-            {
-                var temp = tender[i]
-                tender[i] = tender[i + 1]
-                tender[i + 1] = temp
-            }
-        }
+        tender= PreferenceSeniorPlayer(tender)
 
         //Размещение закупки у игроков
         tender = level?.let { Purchase(tender, it.quantityM) }!!
@@ -131,32 +122,22 @@ class Game(number:Int, round:Int) {
     fun ProductsTender(current:Int) {
         println("Обстановка на рынке ${level?.quantityFP} единиц продукции при максимальной цене ${level?.priceFP}")
         //сбор заявок на тендер
-        var tender= arrayListOf<Tender>()
+        var tender= mutableListOf<Tender>()
         for (player in players) {
             println("Игрок ${player.name}")
             var request=player.RequestsProdukts()
-            if(request.quantity!=0 && request.price < level?.priceFP ?: 0) tender.add(request)
+            if(request.quantity!=0 && request.price <= level?.priceFP ?: 0) tender.add(request)
         }
         println("Заявки игроков на продажу продукции")
         println("name       quantity        price")
         for (request in tender){
             println("${players.find{ it.id == request.id }?.name} - ${request.quantity} - ${request.price}")
         }
-        //сортировка заявок по возрастанию цены не получилась через Comparable
-        //tender= tender.sortWith(compareBy<Tender>{ it.price }.thenBy{ it })
-        //tender= tender.sortedBy { it.price } as ArrayList<Tender>
+        //сортировка заявок по возрастанию цены
+        tender = tender.sortedBy { it.price } as MutableList<Tender>
+
         //приоритет старшего игрока при равной цене
-        //tender= PreferenceSeniorPlayer(tender)
-        for(i in 0..tender.size-2) {
-            if (tender[i].price > tender[i + 1].price ||
-                (tender[i].price == tender[i + 1].price &&
-                        players.indexOfFirst { it.id == tender[i].id } > players.indexOfFirst { it.id == tender[i + 1].id }))
-            {
-                var temp = tender[i]
-                tender[i] = tender[i + 1]
-                tender[i + 1] = temp
-            }
-        }
+        tender= PreferenceSeniorPlayer(tender)
 
         //Размещение закупки у игроков
         tender = level?.let { Purchase(tender, it.quantityFP) }!!
@@ -172,29 +153,22 @@ class Game(number:Int, round:Int) {
         Report(current)
     }
     //приоритет старшего игрока при равной цене  - не использую без сортировки
-    private fun PreferenceSeniorPlayer(tender:ArrayList<Tender>):ArrayList<Tender>{
-        for(i in 0..tender.size-2){
-            if(tender[i].price==tender[i+1].price){
-                if(players.indexOfFirst { it.id ==tender[i].id } > players.indexOfFirst { it.id ==tender[i+1].id })
-                {
-                    var temp=tender[i]
-                    tender[i]=tender[i+1]
-                    tender[i+1]=temp
+    private fun PreferenceSeniorPlayer(tender:MutableList<Tender>):MutableList<Tender>{
+        for(i in 0..tender.size-2) {
+            if (tender[i].price == tender[i + 1].price) {
+                if (players.indexOfFirst { it.id == tender[i].id } > players.indexOfFirst { it.id == tender[i + 1].id }) {
+                    var temp = tender[i]
+                    tender[i] = tender[i + 1]
+                    tender[i + 1] = temp
                 }
             }
-            /* if(tender[i].price<tender[i+1].price || (tender[i].price==tender[i+1].price && players.indexOfFirst { it.id ==tender[i].id } > players.indexOfFirst { it.id ==tender[i+1].id }))
-                {
-                    var temp=tender[i]
-                    tender[i]=tender[i+1]
-                    tender[i+1]=temp
-                }*/
-            }
+        }
         return tender
     }
     //Размещение закупки у игроков
-    fun Purchase(tender:ArrayList<Tender>, quantity:Double): ArrayList<Tender> {
-        var quantity=quantity.toInt()
-        println("Результат тендера")
+    fun Purchase(tender:MutableList<Tender>, quantityD:Double): MutableList<Tender> {
+        var quantity=quantityD.toInt()
+        println("Результат тендера. Размещено $quantity единиц материалов")
         println("name       quantity        price")
         for (request in tender) {
             if(request.quantity>quantity) request.quantity= quantity
@@ -296,19 +270,11 @@ class Game(number:Int, round:Int) {
     }
 
     fun GameOver(current:Int){
+        Report(current)
         //Подсчет капиталов оставшихся игроков
         for (player in players) player.CalcTotalCapital(current, level!!.priceM, level!!.priceFP)
-        //Определение победителя не получилась через Comparable
-        //val players= players.sortByDescending { it.totalCapital } as ArrayList<Player>
-        //отчет за игру  СДЕЛАТЬ
-        for(i in 0..players.size-2) {
-            if (players[i].totalCapital > players[i + 1].totalCapital )
-            {
-                var temp = players[i]
-                players[i] = players[i + 1]
-                players[i + 1] = temp
-            }
-        }
+        //Определение победителя
+        players = players.sortedByDescending { it.totalCapital } as MutableList<Player>
         val firstId = players.first().id
         val firstName = players.first().name
         println("Игра закончена. Победил игрок номер $firstId - $firstName")
