@@ -2,6 +2,8 @@ package BankerManagerSimulation
 //ФАБРИКА
 // установить модификаторы доступа
 class Factory (current:Int=0, auto:Boolean=false) {
+    //может все-таки вторичный конструктор вместо блока инициализации - подумать
+
     var auto = auto  //автоматизированная
     var autoStart = 0   // период старта после реконструкции
         set(value) {
@@ -39,9 +41,6 @@ class Factory (current:Int=0, auto:Boolean=false) {
     }
 
     var pledge = false   //в залоге под ссуду
-
-
-    //может все-таки вторичный конструктор вместо блока инициализации - подумать
 
     //изменение типа фабрики после окончания реконструкции
     fun ChangeFactoryType(){

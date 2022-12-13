@@ -1,38 +1,36 @@
 package BankerManagerSimulation
 //ИГРОК
 // установить модификаторы доступа
-class Player(id:Int, name:String = "неизвестно") {
+class Player(id:Int, name:String = "безымянный") {
     val id=id
-    val name=name
-    var bankrupt=false
+    val name=name       //имя
+    var bankrupt=false  //признак банкрота
     var factories = arrayListOf<Factory>(Factory(), Factory())
-    var material=4
-    var product=2
-    var cash=10000
+    var material=4      //материалы на складе
+    var product=2       //продукция на складе
+    var cash=10000      //наличные
         set(value) {
             if(value>=0) field = value
-            else Bankruptcy()  //учесть банкротство
+            else Bankruptcy()  //банкротство
         }
     var loans = arrayListOf<Loan>()
-    var totalLoans=0
-    var totalPledge=10000
-    var totalCapital=0
+    var totalLoans=0       //общая сумма ссуд
+    var totalPledge=10000  //max залог
+    var totalCapital=0     //капитал игрока
 
     //Константы
-    //Постоянные издержки
-    val materialFee=300
-    val productFee=500
-    //Капитальные затраты
-    val numberFactory=6
-    val invest=5000
-    val reconstr=7000
-
+    val materialFee=300  //плата за единицу сырья на складе
+    val productFee=500   //плата за единицу продукции на складе
+    val numberFactory=6  // max количество фабрик
+    val invest=5000     //min инвестиции в строительство
+    val reconstr=7000  //min инвестиции в реконструкцию
 
     //Подключение к игре
     fun ConnectionTogameGame(){
         //СДЕЛАТЬ запрос на подключение
     }
 
+    // банкротство
     fun Bankruptcy(){
         bankrupt=true
         cash=0
@@ -42,7 +40,7 @@ class Player(id:Int, name:String = "неизвестно") {
         loans.clear()
         totalLoans = 0
         totalPledge=0
-        println("Вы обанкротились")
+        println("$name, Вы обанкротились")
     }
 
     // расчет постоянных затрат
@@ -65,25 +63,27 @@ class Player(id:Int, name:String = "неизвестно") {
         var price= readLine()?.toInt() ?:0
         return Tender(this.id, quantity, price)
     }
+
     //заявка на производство
     fun RequestsManufacture(current:Int) {
-
-        //нужна проверка произв.мощностей !!!!
-
-        print("Введите количество продукции на производство на фабриках, не более $material: ")
+        //проверка произв.мощностей
+        var power = 0
+        for (factory in factories)
+            if (factory.timeStart <= current) power += factory.power
+        if (power > material) power=material
+        print("Введите количество продукции на производство на фабриках, не более $power: ")
         var input= readLine()?.toInt() ?:0
         if (input <= 0) return
-        var quantity=material   //max кол-во для производства
-        if (input <=  material) quantity=input
+        if (input <=  power) power=input
 
         //Размещение заказа на фабриках
         for (factory in factories){
-            if (quantity>0) {
+            if (power>0) {
                 if (factory.timeStart <= current)  //проверяю время на запуск построенной фабрики
                 {
                     //на этой фабрике можно производить продукцию
                     var produced = factory.power  //max кол-во для производства на этой фабрике
-                    if (quantity < factory.power) produced=quantity
+                    if (power < factory.power) produced=power
                     println("Сколько продукции хотите произвести на фабрике, но не более $produced")
                     input = readLine()?.toInt()!!
                     if (input > 0) {  //размещаю производство на фабрике
@@ -94,13 +94,13 @@ class Player(id:Int, name:String = "неизвестно") {
                         if (bankrupt==true) return
                         material -= produced
                         product += produced
-                        quantity -= produced  //уменьшаю кол-во к размещению на производство
+                        power -= produced  //уменьшаю кол-во к размещению на производство
                     }
                 }
             }
         }
-        //Рассчитать переменные расходы
     }
+
     //заявка на продажу продукции
     fun RequestsProdukts():Tender {
         print("Введите количество продукции на продажу, не более $product: ")
@@ -110,6 +110,7 @@ class Player(id:Int, name:String = "неизвестно") {
         if (quantity<=product) return Tender(this.id, quantity, price)
         else return Tender(this.id, product, price)
     }
+
     //заявка на выдачу ссуды
     fun RequestsLoan(current:Int) {
         var freeLoan = totalPledge/2 - totalLoans  //доступная ссуда
@@ -118,9 +119,10 @@ class Player(id:Int, name:String = "неизвестно") {
             print("Ведите общую сумму ссуд - ")
             var input = readLine()?.toInt()!!
             if (input<=0) return
+            if (input < freeLoan) freeLoan=input
             println("Ведите сумму ссуды для каждой фабрики")
             for (i in factories.indices) {
-                if (factories[i].pledge == false)  //фабрика не в залоге
+                if (factories[i].pledge == false && freeLoan > 0)  //фабрика не в залоге
                 {
                     var axe = factories[i].buildingCost  //сумма ссуды для фабрики
                     if (axe >= freeLoan) axe=freeLoan
@@ -167,7 +169,9 @@ class Player(id:Int, name:String = "неизвестно") {
                     println("Недостаточно средств для строительства фабрики")
                     return
                 }
-                println("Автоматизированная фабрика? (Стоимость строительства автоматизированной 10000$, обычной 5000$) Да-1, нет - 0")
+                println("Автоматизированная фабрика? " +
+                        "(Стоимость строительства автоматизированной 10000$, обычной 5000$) " +
+                        "Да-1, нет - 0")
                 input = readLine()?.toInt()!!
                 var auto = false
                 if (input == 1) auto = true
