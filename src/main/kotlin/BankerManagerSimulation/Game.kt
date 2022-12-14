@@ -10,16 +10,16 @@ class Game(number:Int, round:Int) {
     var seniorPlayer=1  //старший игрок
     var order=3  //уровень коньюнктуры рынка
     val loanPercent = 0.01  //ссудный процент
+    lateinit var level:MarketLevel
 
     // не убираются банкрот для рассчета рынка
     val marketLevels= mapOf(
-        1 to MarketLevel( Math.floor(1.0*activePlayers),800,Math.floor(3.0*activePlayers),6500),
-        2 to MarketLevel(Math.floor(1.5*activePlayers),650,Math.floor(2.5*activePlayers),6000),
-        3 to MarketLevel(Math.floor(2.0*activePlayers),500,Math.floor(2.0*activePlayers),5500),
-        4 to MarketLevel(Math.floor(2.5*activePlayers),400,Math.floor(1.5*activePlayers),5000),
-        5 to MarketLevel(Math.floor(3.0*activePlayers),300,Math.floor(1.0*activePlayers),4500)
+        1 to MarketLevel( 1.0,800,3.0,6500),
+        2 to MarketLevel(1.5,650,2.5,6000),
+        3 to MarketLevel(2.0,500,2.0,5500),
+        4 to MarketLevel(2.5,400,1.5,5000),
+        5 to MarketLevel(3.0,300,1.0,4500)
     )
-    var level=marketLevels[order]  // уровень цен на рынке
 
     fun ConnectingPlayers (){
         //набираем игроков
@@ -39,7 +39,7 @@ class Game(number:Int, round:Int) {
         for (current in 1..round) {
             println("Раунд $current")
             CalculationFixedCosts(current)  //списание постоянных издержек
-            level = TransitionPriceLevel(order)  //определение обстановки на рынке
+            level = TransitionPriceLevel(order, activePlayers)  //определение обстановки на рынке
             println(level?.LevelToString())  //извещение игроков об обстановке на рынке
             MaterialsTender(current)//Тендер на продажу материалов
             Manufacture(current)    //Производство продукции и расчеты
@@ -51,6 +51,7 @@ class Game(number:Int, round:Int) {
                             //ОТЧЕТ за раунд
             activePlayers = players.size
             if (activePlayers<=1) GameOver(current)    //если конец игры, то определить победителя СДЕЛАТЬ
+            FullReport(current)
             InstallSeniorPlayer(current)  //определение старшего игрока на следующий круг ДОДЕЛАТЬ
         }
         GameOver(round) //СДЕЛАТЬ
@@ -58,20 +59,13 @@ class Game(number:Int, round:Int) {
 
     //списание постоянных издержек
     fun CalculationFixedCosts(current:Int){
-        for (player in players) {
-            player.CalcFixedCosts(current)
-            if (player.bankrupt == true)  {
-                println("Игрок ${player.name} - банкрот")
-                players.remove(player)  //убираю банкрота
-            }
-        }
-        if (players.isEmpty()) GameOver(current)
+        for (player in players) player.CalcFixedCosts(current)
         println("Списаны постоянные издержки")
-        Report(current)
+        BankruptCheck(current)
     }
 
     //определение обстановки на рынке
-    fun TransitionPriceLevel(order:Int): MarketLevel? {
+    fun TransitionPriceLevel(order:Int, activePlayers:Int): MarketLevel {
         var options: List<Int> = listOf()
         when(order){
             1 -> options = listOf(1,1,1,1,2,2,2,2,3,3,4,5)
@@ -81,7 +75,10 @@ class Game(number:Int, round:Int) {
             5 -> options = listOf(1,2,3,3,4,4,4,4,5,5,5,5)
         }
         this.order =options.random()
-        return marketLevels[order]
+        level= marketLevels[order]!!
+        level!!.quantityM = Math.floor (level!!.quantityM * activePlayers)
+        level!!.quantityFP = Math.floor (level!!.quantityFP * activePlayers)
+        return level
     }
 
     //Тендер на продажу материалов
@@ -117,14 +114,10 @@ class Game(number:Int, round:Int) {
             if (player !=null){
                 player.material += request.quantity
                 player.cash -= request.quantity * request.price
-                if (player.bankrupt == true)  {
-                    println("Игрок ${player.name} - банкрот")
-                    players.remove(player)  //убираю банкрота
-                }
             }
         }
-        if (players.isEmpty()) GameOver(current)
-        Report(current)
+        println("Состоялся тендер на материалы")
+        BankruptCheck(current)
     }
 
     //Тендер на закуп продукции
@@ -161,7 +154,8 @@ class Game(number:Int, round:Int) {
                 player.cash += request.quantity * request.price
             }
         }
-        Report(current)
+        println("Состоялся тендер на продукцию")
+        BankruptCheck(current)
     }
 
     //приоритет старшего игрока при равной цене
@@ -182,7 +176,7 @@ class Game(number:Int, round:Int) {
     //Размещение закупки у игроков
     fun Purchase(tender:MutableList<Tender>, quantityD:Double): MutableList<Tender> {
         var quantity=quantityD.toInt()
-        println("Результат тендера. Размещено $quantity единиц материалов")
+        println("Результат тендера. Размещено $quantity единиц")
         println("name   quantity    price")
         for (request in tender) {
             if(request.quantity>quantity) request.quantity= quantity
@@ -199,24 +193,16 @@ class Game(number:Int, round:Int) {
             println("Игрок ${player.name} сделайте заявку на производство")
             player.RequestsManufacture(current)
         }
+        println("Произведена продукция")
         BankruptCheck(current)
-
     }
 
     //Выплата ссудного %
     fun InterestPayment(current:Int){
-        for (player in players) {
-            if (player.totalLoans > 0) {
-                player.cash -= (player.totalLoans * loanPercent).toInt()
-                if (player.bankrupt == true)  {
-                    println("Игрок ${player.name} - банкрот")
-                    players.remove(player)  //убираю банкрота
-                }
-            }
-        }
-        if (players.isEmpty()) GameOver(current)
+        for (player in players)
+            if (player.totalLoans > 0) player.cash -= (player.totalLoans * loanPercent).toInt()
         println("Произведена выплата ссудного %")
-        Report(current)
+        BankruptCheck(current)
     }
     //Погашение ссуд
     fun LoanRepayment(current:Int){
@@ -224,21 +210,14 @@ class Game(number:Int, round:Int) {
             if (player.totalLoans > 0) {
                 for (loan in player.loans)
                     if (loan.term == current) {
-                        //проверка на банкротство
-                        if (player.bankrupt == true) break
                         player.totalLoans -= loan.amount
                         loan.factory.pledge = false
                         player.loans.remove(loan)
                         player.cash -= loan.amount
                     }
-                if (player.bankrupt == true)  {
-                    println("Игрок ${player.name} - банкрот")
-                    players.remove(player)  //убираю банкрота
-                }
             }
-        if (players.isEmpty()) GameOver(current)
         println("Произведен возврат ссуд")
-        Report(current)
+        BankruptCheck(current)
     }
     //Получение ссуд
     fun GettingLoans(current:Int){
@@ -247,7 +226,7 @@ class Game(number:Int, round:Int) {
             player.RequestsLoan(current)
         }
         println("Произведена выдача ссуд")
-        Report(current)
+        BankruptCheck(current)
     }
 
     //инвестиции в строительство фабрик
@@ -255,14 +234,9 @@ class Game(number:Int, round:Int) {
         for (player in players) {
             println("Игрок ${player.name} сделайте заявку на инвестирование")
             player.RequestsBuilding(current)
-            if (player.bankrupt == true)  {
-                println("Игрок ${player.name} - банкрот")
-                players.remove(player)  //убираю банкрота
-            }
         }
-        if (players.isEmpty()) GameOver(current)
         println("Произведены инвестиции")
-        Report(current)
+        BankruptCheck(current)
     }
 
     //проверка банкротов
@@ -288,13 +262,34 @@ class Game(number:Int, round:Int) {
     //Отчет
     fun Report(current:Int){
         println("Отчет по игрокам раунд $current")
-        println("id  name    cash    material    product    totalLoans")
+        println("id-name-cash-material-product-totalFactory")
         for (player in players) println("${player.id} - ${player.name} - " +
-                "${player.cash} - ${player.material} - ${player.product} - ${player.totalLoans}")
+                "${player.cash} - ${player.material} - ${player.product} - ${player.factories.size}")
+    }
+    fun FullReport(current:Int) {
+        println("Отчет по игрокам раунд $current")
+        println("id-name-totalCapital-cash-material-product-totalLoans-totalFactory-workFactory-workAutoFactory-bildFactory")
+        for (player in players) {
+            var totalFactory = player.factories.size
+            var workFactory = 0
+            var workAutoFactory = 0
+            var bildFactory = 0
+            for (factory in player.factories) {
+                if (factory.timeStart <= current) {
+                    workFactory++
+                    if (factory.auto == true) workAutoFactory++
+                }
+                bildFactory = totalFactory - workFactory
+            }
+
+            player.CalcTotalCapital(current, level!!.priceM, level!!.priceFP)
+            println("${player.id} - ${player.name} - ${player.totalCapital} - ${player.cash} - ${player.material} - ${player.product} - " +
+                    "${player.totalLoans} - ${totalFactory} - ${workFactory} - ${workAutoFactory} - ${bildFactory}")
+        }
     }
 
     fun GameOver(current:Int){
-        //Report(current)
+        FullReport(current)
         //Подсчет капиталов оставшихся игроков
         for (player in players) player.CalcTotalCapital(current, level!!.priceM, level!!.priceFP)
         //Определение победителя
