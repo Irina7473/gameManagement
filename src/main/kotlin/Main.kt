@@ -6,7 +6,7 @@ fun main() {
     val num= readLine()!!.toInt()
     print("Введите количество раундов: ")
     val round= readLine()!!.toInt()
-    var game=Game(num,round)
+    val game=Game(num,round)
     game.ConnectingPlayers()
     game.StartGame()
 

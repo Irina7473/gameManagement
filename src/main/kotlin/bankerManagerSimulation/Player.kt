@@ -1,7 +1,7 @@
 package bankerManagerSimulation
 //ИГРОК
 // установить модификаторы доступа
-class Player(val id:Int, val name:String = "безымянный") {
+class Player(val id:Int, val name:String="безымянный") {
     var bankrupt=false  //признак банкрота
     var factories = arrayListOf(Factory(), Factory())
     var material=4      //материалы на складе
@@ -23,7 +23,7 @@ class Player(val id:Int, val name:String = "безымянный") {
     private val reconstr=7000  //min инвестиции в реконструкцию
 
     //Подключение к игре для сетевой версии
-    fun ConnectionTogameGame(){
+    fun ConnectionToGame(){
         //СДЕЛАТЬ запрос на подключение для сетевой версии
     }
 
@@ -160,7 +160,7 @@ class Player(val id:Int, val name:String = "безымянный") {
             println("Недостаточно средств для строительства и реконструкции фабрик")
             return
         }
-        var input =0
+        var input: Int
         //Строительство новых фабрик
         var freeBuild = numberFactory- factories.size  //доступно для строительства
         if (freeBuild > 0) {

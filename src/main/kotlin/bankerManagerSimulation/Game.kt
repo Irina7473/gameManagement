@@ -3,17 +3,17 @@ package bankerManagerSimulation
 // установить модификаторы доступа
 
 class Game(number:Int,
-           val round:Int) //всего раундов
+           private val round:Int) //всего раундов
 {
     private var players= mutableListOf<Player>()   //список игроков
-    val numberPlayers=number   //всего игроков
+    private val numberPlayers=number   //всего игроков
     private var seniorPlayer=1  //старший игрок
     private var order=3  //уровень коньюнктуры рынка
     private val loanPercent = 0.01  //ссудный процент
 
     // не убираются банкрот для рассчета рынка
     private val marketLevels= mapOf(
-        1 to MarketLevel( 1.0,800,3.0,6500),
+        1 to MarketLevel(1.0,800,3.0,6500),
         2 to MarketLevel(1.5,650,2.5,6000),
         3 to MarketLevel(2.0,500,2.0,5500),
         4 to MarketLevel(2.5,400,1.5,5000),
@@ -27,7 +27,7 @@ class Game(number:Int,
             //Подключение нового игрока
             print("Введите имя: ")
             var name = readLine().toString()
-            if (name==null) name="безымянный"+n
+            if (name.isEmpty()) name="безымянный"
             if (players.any{ it.name == name }) {
                 println("Игрок с таким именем существует, Вам присвоено имя ${name + n}")
                 name += n
@@ -35,6 +35,7 @@ class Game(number:Int,
             players.add(Player(n, name))
         }
     }
+
     fun StartGame(){
         for (current in 1..round) {
             println("Раунд $current")
@@ -85,7 +86,7 @@ class Game(number:Int,
         for (player in players) {
             println("Игрок ${player.name} сделайте заявку на закуп материалов")
             val request=player.RequestsMaterials()
-            if(request.quantity!=0 && request.price >= level.priceM ?: 0) tender.add(request)
+            if(request.quantity!=0 && request.price >= level.priceM) tender.add(request)
         }
         if (tender.isEmpty()) {
             println("Тендер не состоялся")
@@ -106,7 +107,7 @@ class Game(number:Int,
         tender= PreferenceSeniorPlayer(tender)
 
         //Размещение закупки у игроков
-        tender = level?.let { Purchase(tender, it.quantityM) }!!
+        tender = Purchase(tender, level.quantityM)
 
         //продажа материалов по результатам тендера
         for (request in tender){
@@ -129,7 +130,7 @@ class Game(number:Int,
         for (player in players) {
             println("Игрок ${player.name} сделайте заявку на продажу продукции")
             val request=player.RequestsProdukts()
-            if(request.quantity!=0 && request.price <= level?.priceFP ?: 0) tender.add(request)
+            if(request.quantity!=0 && request.price <= level.priceFP) tender.add(request)
         }
         if (tender.isEmpty()) {
             println("Тендер не состоялся")
@@ -138,8 +139,8 @@ class Game(number:Int,
         println("Заявки игроков на продажу продукции")
         println("name   quantity    price")
         for (request in tender){
-            println("${players.find{ it.id == request.id }?.name} - " +
-                    "${request.quantity} - ${request.price}")
+            print("Игрок ${players.find{ it.id == request.id }?.name} : ")
+            request.TenderToString()
         }
         //сортировка заявок по возрастанию цены
         tender = tender.sortedBy { it.price } as MutableList<Tender>
@@ -148,7 +149,7 @@ class Game(number:Int,
         tender= PreferenceSeniorPlayer(tender)
 
         //Размещение закупки у игроков
-        tender = level?.let { Purchase(tender, it.quantityFP) }!!
+        tender = Purchase(tender, level.quantityFP)
 
         //покупка продукции по результатам тендера
         for (request in tender){
@@ -247,9 +248,9 @@ class Game(number:Int,
     private fun BankruptCheck(current:Int){
         val size=players.size-1
         for ( i in 0..size) {
-            if (players.get(i).bankrupt == true)  {
-                println("Игрок ${players.get(i).name} - банкрот")
-                players.remove(players.get(i))  //убираю банкрота
+            if (players[i].bankrupt)  {
+                println("Игрок ${players[i].name} - банкрот")
+                players.remove(players[i])  //убираю банкрота
             }
         }
         if (players.isEmpty()) GameOver(current)
@@ -282,14 +283,14 @@ class Game(number:Int,
             for (factory in player.factories) {
                 if (factory.timeStart <= current) {
                     workFactory++
-                    if (factory.auto == true) workAutoFactory++
+                    if (factory.auto) workAutoFactory++
                 }
                 bildFactory = totalFactory - workFactory
             }
 
             player.CalcTotalCapital(current, level.priceM, level.priceFP)
             println("${player.id} - ${player.name} - ${player.totalCapital} - ${player.cash} - ${player.material} - ${player.product} - " +
-                    "${player.totalLoans} - ${totalFactory} - ${workFactory} - ${workAutoFactory} - ${bildFactory}")
+                    "${player.totalLoans} - $totalFactory - $workFactory - $workAutoFactory - $bildFactory")
         }
     }
 
