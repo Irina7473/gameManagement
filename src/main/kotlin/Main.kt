@@ -1,5 +1,4 @@
-import BankerManagerSimulation.Factory
-import BankerManagerSimulation.Game
+import bankerManagerSimulation.Game
 
 fun main() {
     println("Деловая игра Менеджмент")
